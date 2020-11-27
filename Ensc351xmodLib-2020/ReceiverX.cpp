@@ -229,6 +229,7 @@ void ReceiverX::purge()
     /* P
            TM_CHAR = 1 second period
     */
+
     /*
     Read and discard contiguous CAN characters. Read
     characters one-by-one in a loop until either nothing is
@@ -237,7 +238,7 @@ void ReceiverX::purge()
     the console.
     */
 
-    int appropriateSize = 150; //P TODO: Figure out appropriate size
+    const int appropriateSize = 150; //P TODO: Figure out appropriate size
     char buffer[appropriateSize];
     char character=CAN;
     int bytesRead;
@@ -248,9 +249,12 @@ void ReceiverX::purge()
                     sizeof(character), dSECS_PER_UNIT*TM_CHAR, dSECS_PER_UNIT*TM_CHAR));
         //bytesRead = PE(myReadcond(mediumD, &character, sizeof(character), sizeof(character), canTimeout, canTimeout));
         totalBytesRd += bytesRead;
-    } while (bytesRead && character==CAN && totalBytesRd < (CAN_LEN - 2));
-    if (character != CAN)
-        CON_OUT(consoleOutId, character << flush);
+        cout << "Total Bytes Read: " << bytesRead << endl;
+    } while (bytesRead);
+
+    cout << "We exited the purge loop!" << endl;
+//    if (character != CAN)
+//        CON_OUT(consoleOutId, character << flush);
 }
 
 void ReceiverX::receiveFile()
