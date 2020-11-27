@@ -92,7 +92,7 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 		CERR << "Error opening sender state chart log file named: " << smLogName << endl;
 		exit(EXIT_FAILURE);
 	}
-	mySM->setDebugLog(&smLogFile);
+//	mySM->setDebugLog(&smLogFile);
 	// */
 
 	// comment out the line below if you want to see logging information which will,
@@ -103,22 +103,68 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 
 	/* ******** You may need to add code here ******** */
 
+//P BEGIN
+//	/* Check the first NFDS descriptors each in READFDS (if not NULL) for read
+//	   readiness, in WRITEFDS (if not NULL) for write readiness, and in EXCEPTFDS
+//	   (if not NULL) for exceptional conditions.  If TIMEOUT is not NULL, time out
+//	   after waiting the interval specified therein.  Returns the number of ready
+//	   descriptors, or -1 for errors.
+//
+//	   This function is a cancellation point and therefore not marked with
+//	   __THROW.  */
+//	extern int select (int __nfds, fd_set *__restrict __readfds,
+//	           fd_set *__restrict __writefds,
+//	           fd_set *__restrict __exceptfds,
+//	           struct timeval *__restrict __timeout);
+//    int rv = PE(select( max(mediumD,inD)+1, &set, NULL, NULL, NULL ));
+//P END
+
 	struct timeval tv;
 
 	while(mySM->isRunning()) {
 		// ************* this loop is going to need more work ************
 		tv.tv_sec=0;
+		tv.tv_usec=0;//P from Debug menu tv_usec is included
+
+//	    fd_set set;
+//	    FD_ZERO(&set);
+//	    FD_SET(mediumD, &set);
+//	    FD_SET(inD, &set);
+//
+//	    int rv = PE(select( max(mediumD,
+//                        inD)+1, &set, NULL, NULL, NULL ));
+/*P
+	    fd_set set;
+	    FD_ZERO(&set);
+	    FD_SET(mediumD, &set);
+	    FD_SET(consoleInId, &set); //P consoleInId is input from the console I think
+//	    int max_fd_t = max(d[TERM1], d[TERM2]);
+//	    int max_fd = max(max_fd_t, STDIN_FILENO)+1;
+//	    int rv = PE(select(max_fd, &set, NULL, NULL, NULL));
+//		FD_ISSET(STDIN_FILENO, &set);
+
+		 *  SOMEHOW Determine what type of input is coming in, probably relying on the select function
+		 *
+        fd_set set;
+        FD_ZERO(&set); // Resets "set"'s bits to zero
+        input this somewhere in this loop to check:
+        int rv = PE(select( max(mediumD,inD)+1, &set, NULL, NULL, NULL ));
+        "Hey, select function" was there input from the keyboard, medium descriptor or was there a timeout?"
+		*/
 		uint32_t now = elapsed_usecs();
         if (now >= absoluteTimeout) {
             //...
+            //P We are leaving due to timeout, what do we reset??!
             mySM->postEvent(TM);
         } else {
             // ...
+            //P Determine where the input is coming from?
             /****/ {
                 //read character from medium
 				char byteToReceive;
-				PE_NOT(myReadcond(mediumD, &byteToReceive, 1, 1, 0, 0), 1); // data should be available right away
+				PE_NOT(myReadcond(mediumD, &byteToReceive, 1, 1, 0, 0), 1); // data should be available right //P This is waiting forever... is it supposed to wait forever?!?
 				//PE_NOT(myRead(mediumD, &byteToReceive, 1), 1);
+
 				if (reportInfo)
 					COUT << logLeft << 1.0*(absoluteTimeout - now)/MILLION << ":" << (int)(unsigned char) byteToReceive << ":" << byteToReceive << logRight << flush;
 				mySM->postEvent(SER, byteToReceive);

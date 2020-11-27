@@ -230,26 +230,17 @@ void ReceiverX::purge()
            TM_CHAR = 1 second period
     */
 
-    /*
-    Read and discard contiguous CAN characters. Read
-    characters one-by-one in a loop until either nothing is
-    received over a "2CHAR" timeout period period or a character other than
-    CAN is received. If received, send a non-CAN character to
-    the console.
-    */
+//    const int appropriateSize = 150; //P TODO: Determine if reading 1 char at a time is appropriate
+//    char buffer[appropriateSize];
 
-    const int appropriateSize = 150; //P TODO: Figure out appropriate size
-    char buffer[appropriateSize];
     char character=CAN;
-    int bytesRead;
-    int totalBytesRd = 0; // not yet tested
-    // will not work if CAN_LEN < 3
+    int bytesRead = 1;
+    // This will loop only for 1 second since thread will be stuck reading
+    // for dSECS...*TM_CHAR where TM_CHAR is 1 second
     do {
         bytesRead = PE(myReadcond(mediumD, &character, sizeof(character),
                     sizeof(character), dSECS_PER_UNIT*TM_CHAR, dSECS_PER_UNIT*TM_CHAR));
-        //bytesRead = PE(myReadcond(mediumD, &character, sizeof(character), sizeof(character), canTimeout, canTimeout));
-        totalBytesRd += bytesRead;
-        cout << "Total Bytes Read: " << bytesRead << endl;
+        cout << "Bytes Read: " << bytesRead << endl;
     } while (bytesRead);
 
     cout << "We exited the purge loop!" << endl;
