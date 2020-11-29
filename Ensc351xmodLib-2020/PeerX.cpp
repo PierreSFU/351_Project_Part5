@@ -118,6 +118,36 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 //	           struct timeval *__restrict __timeout);
 //    int rv = PE(select( max(mediumD,inD)+1, &set, NULL, NULL, NULL ));
 //P END
+	//      fd_set set;
+	//      FD_ZERO(&set);
+	//      FD_SET(mediumD, &set);
+	//      FD_SET(inD, &set);
+	//
+	//      int rv = PE(select( max(mediumD,
+	//                        inD)+1, &set, NULL, NULL, NULL ));
+	/*P
+	        fd_set set;
+	        FD_ZERO(&set);
+	        FD_SET(mediumD, &set);
+	        FD_SET(consoleInId, &set); //P consoleInId is input from the console I think
+	//      int max_fd_t = max(d[TERM1], d[TERM2]);
+	//      int max_fd = max(max_fd_t, STDIN_FILENO)+1;
+	//      int rv = PE(select(max_fd, &set, NULL, NULL, NULL));
+	//      FD_ISSET(STDIN_FILENO, &set);
+
+	         *  SOMEHOW Determine what type of input is coming in, probably relying on the select function
+	         *
+	        fd_set set;
+	        FD_ZERO(&set); // Resets "set"'s bits to zero
+	        input this somewhere in this loop to check:
+	        int rv = PE(select( max(mediumD,inD)+1, &set, NULL, NULL, NULL ));
+	        "Hey, select function" was there input from the keyboard, medium descriptor or was there a timeout?"
+	        */
+
+	//        int max_fd_t = max(d[TERM1], d[TERM2]);
+	//        int max_fd = max(max_fd_t, STDIN_FILENO)+1;
+
+	//        FD_SET(consoleInId, &set); //P consoleInId is input from the console I think
 
 	struct timeval tv;
 
@@ -126,31 +156,20 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 		tv.tv_sec=0;
 		tv.tv_usec=0;//P from Debug menu tv_usec is included
 
-//	    fd_set set;
-//	    FD_ZERO(&set);
-//	    FD_SET(mediumD, &set);
-//	    FD_SET(inD, &set);
-//
-//	    int rv = PE(select( max(mediumD,
-//                        inD)+1, &set, NULL, NULL, NULL ));
-/*P
-	    fd_set set;
-	    FD_ZERO(&set);
-	    FD_SET(mediumD, &set);
-	    FD_SET(consoleInId, &set); //P consoleInId is input from the console I think
-//	    int max_fd_t = max(d[TERM1], d[TERM2]);
-//	    int max_fd = max(max_fd_t, STDIN_FILENO)+1;
-//	    int rv = PE(select(max_fd, &set, NULL, NULL, NULL));
-//		FD_ISSET(STDIN_FILENO, &set);
 
-		 *  SOMEHOW Determine what type of input is coming in, probably relying on the select function
-		 *
         fd_set set;
-        FD_ZERO(&set); // Resets "set"'s bits to zero
-        input this somewhere in this loop to check:
-        int rv = PE(select( max(mediumD,inD)+1, &set, NULL, NULL, NULL ));
-        "Hey, select function" was there input from the keyboard, medium descriptor or was there a timeout?"
-		*/
+        FD_ZERO(&set);
+        FD_SET(mediumD, &set); // Add mediumD to set
+        FD_SET(consoleInId, &set); // Add console input as a set
+
+        cout << "Current input bit is! " << set.fds_bits[0] << endl;
+        if(set.fds_bits[0] == 8){
+               cout << "transferCommon: &s" << endl;
+        }
+        else if(set.fds_bits[0] == 32){
+               cout << "transferCommon: &r" << endl;
+        }
+
 		uint32_t now = elapsed_usecs();
         if (now >= absoluteTimeout) {
             //...
@@ -158,6 +177,9 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
             mySM->postEvent(TM);
         } else {
             // ...
+            tv.tv_usec = absoluteTimeout - now; //p Relative time
+            int rv = PE(select( max(mediumD,consoleInId)+1, &set, NULL, NULL, &tv ));
+            cout << "Selects input RV is " << rv << endl;
             //P Determine where the input is coming from?
             /****/ {
                 //read character from medium
