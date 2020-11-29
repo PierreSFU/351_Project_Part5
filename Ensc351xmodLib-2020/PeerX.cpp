@@ -94,7 +94,7 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 	}
 	mySM->setDebugLog(&smLogFile);
 	// */
-
+	COUT << "transferCommon" << endl;
 	// comment out the line below if you want to see logging information which will,
 	//	by default, go to cout.
 	mySM->setDebugLog(nullptr); // this will affect both peers.  Is this okay?
@@ -104,17 +104,32 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 	/* ******** You may need to add code here ******** */
 
 	struct timeval tv;
+	fd_set set; //initialize an fd_set (I think this is like an array) /a
+    FD_ZERO(&set); //we have to zero the set idk why /a
+	FD_SET(mediumD, &set); // add our medium descriptor to the set /a
+
 
 	while(mySM->isRunning()) {
 		// ************* this loop is going to need more work ************
+
+	    int fdsReady = select(mediumD, &set, NULL, NULL, &tv); //first argument is something to do with the size of the descriptors, second is the set where we determine
+	                                                           //what's ready to be read, last is our timeval struct /a
+	    COUT << fdsReady << endl;
 		tv.tv_sec=0;
 		uint32_t now = elapsed_usecs();
         if (now >= absoluteTimeout) {
             //...
             mySM->postEvent(TM);
-        } else {
+        }
+
+        if (fdsReady == 0) { //if select timed out /a
+            mySM->postEvent(TM);
+
+        }
+
+        else if ( FD_ISSET( mediumD, &set )){ //if mediumD is ready /a
             // ...
-            /****/ {
+            /****/
                 //read character from medium
 				char byteToReceive;
 				PE_NOT(myReadcond(mediumD, &byteToReceive, 1, 1, 0, 0), 1); // data should be available right away
@@ -124,10 +139,8 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 				mySM->postEvent(SER, byteToReceive);
 			}
 		}
-	}
 //		smLogFile.close();
 }
-
 // returns microseconds elapsed since this peer was constructed (within 1 second)
 uint32_t PeerX::elapsed_usecs()
 {

@@ -236,19 +236,19 @@ void ReceiverX::purge()
     CAN is received. If received, send a non-CAN character to
     the console.
     */
-
     int appropriateSize = 150; //P TODO: Figure out appropriate size
     char buffer[appropriateSize];
-    char character=CAN;
+    char character;
     int bytesRead;
     int totalBytesRd = 0; // not yet tested
     // will not work if CAN_LEN < 3
     do {
         bytesRead = PE(myReadcond(mediumD, &character, sizeof(character),
-                    sizeof(character), dSECS_PER_UNIT*TM_CHAR, dSECS_PER_UNIT*TM_CHAR));
+                    sizeof(character), dSECS_PER_UNIT*TM_2CHAR, dSECS_PER_UNIT*TM_2CHAR));
         //bytesRead = PE(myReadcond(mediumD, &character, sizeof(character), sizeof(character), canTimeout, canTimeout));
-        totalBytesRd += bytesRead;
-    } while (bytesRead && character==CAN && totalBytesRd < (CAN_LEN - 2));
+
+
+    } while (bytesRead);
     if (character != CAN)
         CON_OUT(consoleOutId, character << flush);
 }
