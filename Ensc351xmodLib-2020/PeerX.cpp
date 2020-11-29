@@ -112,22 +112,24 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 	while(mySM->isRunning()) {
 		// ************* this loop is going to need more work ************
 
-	    int fdsReady = select(mediumD, &set, NULL, NULL, &tv); //first argument is something to do with the size of the descriptors, second is the set where we determine
-	                                                           //what's ready to be read, last is our timeval struct /a
-	    COUT << fdsReady << endl;
+
+	    //COUT << fdsReady << endl;
 		tv.tv_sec=0;
 		uint32_t now = elapsed_usecs();
+		int fdsReady = select(mediumD+1, &set, NULL, NULL, &tv); //first argument is something to do with the size of the descriptors, second is the set where we determine
+		                                                                   //what's ready to be read, last is our timeval struct /a
+
         if (now >= absoluteTimeout) {
             //...
             mySM->postEvent(TM);
         }
 
-        if (fdsReady == 0) { //if select timed out /a
-            mySM->postEvent(TM);
+//        if (fdsReady == 0) { //if select timed out /a
+//            mySM->postEvent(TM);
+//
+//        }
 
-        }
-
-        else if ( FD_ISSET( mediumD, &set )){ //if mediumD is ready /a
+        else if( FD_ISSET( mediumD, &set ) ){ //if mediumD is ready /a
             // ...
             /****/
                 //read character from medium
