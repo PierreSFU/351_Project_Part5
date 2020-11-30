@@ -105,42 +105,44 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 
 	struct timeval tv;
 	fd_set set; //initialize an fd_set (I think this is like an array) /a
-    FD_ZERO(&set); //we have to zero the set idk why /a
-	FD_SET(mediumD, &set); // add our medium descriptor to the set /a
+
 
 
 	while(mySM->isRunning()) {
 		// ************* this loop is going to need more work ************
 
-
 	    //COUT << fdsReady << endl;
-		tv.tv_sec=0;
-		uint32_t now = elapsed_usecs();
-		int fdsReady = select(mediumD+1, &set, NULL, NULL, &tv); //first argument is something to do with the size of the descriptors, second is the set where we determine
-		                                                                   //what's ready to be read, last is our timeval struct /a
+	    FD_ZERO(&set); //we have to zero the set idk why /a
+	    FD_SET(mediumD, &set); // add our medium descriptor to the set /a
 
-        if (now >= absoluteTimeout) {
+		tv.tv_sec=0;
+		tv.tv_usec = 0;
+		uint32_t now = elapsed_usecs();
+
+
+        if ((now >= absoluteTimeout)) {
             //...
             mySM->postEvent(TM);
         }
 
-//        if (fdsReady == 0) { //if select timed out /a
-//            mySM->postEvent(TM);
-//
-//        }
-
-        else if( FD_ISSET( mediumD, &set ) ){ //if mediumD is ready /a
+        else  { //if mediumD is ready /a
+            tv.tv_usec = absoluteTimeout - now;
+            int fdsReady = select(mediumD+1, &set, NULL, NULL, &tv); //first argument is something to do with the size of the descriptors, second is the set where we determine
+                                                                                           //what's ready to be read, last is our timeval struct /a
             // ...
             /****/
+            if( FD_ISSET( mediumD, &set )) {
                 //read character from medium
+
 				char byteToReceive;
 				PE_NOT(myReadcond(mediumD, &byteToReceive, 1, 1, 0, 0), 1); // data should be available right away
 				//PE_NOT(myRead(mediumD, &byteToReceive, 1), 1);
 				if (reportInfo)
 					COUT << logLeft << 1.0*(absoluteTimeout - now)/MILLION << ":" << (int)(unsigned char) byteToReceive << ":" << byteToReceive << logRight << flush;
 				mySM->postEvent(SER, byteToReceive);
-			}
+            }
 		}
+	}
 //		smLogFile.close();
 }
 // returns microseconds elapsed since this peer was constructed (within 1 second)
