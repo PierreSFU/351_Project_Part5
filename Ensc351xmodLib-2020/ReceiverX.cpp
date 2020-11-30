@@ -240,10 +240,10 @@ void ReceiverX::purge()
     do {
         bytesRead = PE(myReadcond(mediumD, &character, sizeof(character),
                     sizeof(character), dSECS_PER_UNIT*TM_CHAR, dSECS_PER_UNIT*TM_CHAR));
-        cout << "Bytes Read: " << bytesRead << endl;
+//        cout << "Bytes Read: " << bytesRead << endl;
     } while (bytesRead);
 
-    cout << "We exited the purge loop!" << endl;
+//    cout << "We exited the purge loop!" << endl;
 //    if (character != CAN)
 //        CON_OUT(consoleOutId, character << flush);
 }
