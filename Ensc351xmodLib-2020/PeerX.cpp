@@ -125,24 +125,24 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
         if (now >= absoluteTimeout) {
             //P Technically we can check for KeyboardCancellation before leaving, but this code would execute so quickly that it woudln't matter right...?
             //P Checking RV in here may be overkill
-            tv.tv_usec = 1*dSECS_PER_UNIT; //p Only check if it's already there so leave this extremely small
-            int max_fd = max(mediumD, consoleInId)+1;
-            int rv = PE(select( max_fd, &set, NULL, NULL, &tv ));
-            if(rv != 0)
-            if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
-                cout << "\n consoleInId" << endl;
-                int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 0);
-
-                if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
-                    cout << "Keyboard cancel triggered" << endl;
-                    mySM->postEvent(KB_C);
-                }
-            } else{
+//            tv.tv_usec = 1*dSECS_PER_UNIT; //p Only check if it's already there so leave this extremely small
+//            int max_fd = max(mediumD, consoleInId)+1;
+//            int rv = PE(select( max_fd, &set, NULL, NULL, &tv ));
+//            if(rv != 0)
+//            if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
+//                cout << "\n consoleInId" << endl;
+//                int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 0);
+//
+//                if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
+//                    cout << "Keyboard cancel triggered" << endl;
+//                    mySM->postEvent(KB_C);
+//                }
+//            } else{
                 tv.tv_sec=0;
                 tv.tv_usec=0;//p from Debug menu tv_usec is included
                 cout << "\nWe timed out, relatively" << endl;
                 mySM->postEvent(TM);
-            }
+//            }
         } else {
 //            tv.tv_sec = absoluteTimeout - now; //p Relative time
             tv.tv_usec = absoluteTimeout - now; //p Relative time
@@ -157,7 +157,8 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
                 if(FD_ISSET(mediumD, &set)) { // If the mediumD has something to read from
                     cout << "\n mediumD" << endl;
                     //read character from medium
-                    PE_NOT(myReadcond(mediumD, &byteToReceive[0], 1, 1, 0, 0), 1); // data should be available right //P This is waiting forever... is it supposed to wait forever?!?
+                    PE_NOT(myReadcond(mediumD, &byteToReceive[0], 1, 1, 0, 1), 1); // data should be available right //P Set timer to 1, since data should be available right away
+                    cout << "\n Done reading! mediumD" << endl;
 
                     if (reportInfo)
                         COUT << logLeft << 1.0*(absoluteTimeout - now)/MILLION << ":" << (int)(unsigned char) byteToReceive[0] << ":" << byteToReceive[0] << logRight << flush;
@@ -165,10 +166,11 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
                 }
                 if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
                     cout << "\n consoleInId" << endl;
-                    int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 0);
+                    int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 1);
+                    cout << "\n Done reading! console" << endl;
 
                     if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
-                        cout << "Keyboard cancel triggered" << endl;
+//                        cout << "Keyboard cancel triggered" << endl;
                         mySM->postEvent(KB_C);
                     }
                 }
