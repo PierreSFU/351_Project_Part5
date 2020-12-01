@@ -102,77 +102,75 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 	mySM->start();
 
 	/* ******** You may need to add code here ******** */
-#define SEND_C      "&s"
-#define RECV_C      "&r"
-
-#define TERM_QUIT_C     "&q!"
-
+	
 	struct timeval tv;
 
 	while(mySM->isRunning()) {
 		// ************* this loop is going to need more work ************
-        fd_set set;
+	    fd_set set;
         FD_ZERO(&set); //p Initialize set
         FD_SET(mediumD, &set); //p Add mediumD to set
         FD_SET(consoleInId, &set); //p Add console input to set
-		uint32_t now = elapsed_usecs(); //p Set now to current time
-//		uint32_t now = elapsed_usecs()*dSECS_PER_UNIT; //p may be needed in dSECS
 
+        char byteToReceive[3]; // [0] = ~, [1] = letter, [2] = \n
         tv.tv_sec=0;
         tv.tv_usec=0;//p from Debug menu tv_usec is included
-        char byteToReceive[3]; // [0] = ~, [1] = letter, [2] = \n
-
+        uint32_t now = elapsed_usecs(); //p Set now to current time
         if (now >= absoluteTimeout) {
-            //P Technically we can check for KeyboardCancellation before leaving, but this code would execute so quickly that it woudln't matter right...?
-            //P Checking RV in here may be overkill
-//            tv.tv_usec = 1*dSECS_PER_UNIT; //p Only check if it's already there so leave this extremely small
-//            int max_fd = max(mediumD, consoleInId)+1;
-//            int rv = PE(select( max_fd, &set, NULL, NULL, &tv ));
-//            if(rv != 0)
-//            if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
-//                cout << "\n consoleInId" << endl;
-//                int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 0);
-//
-//                if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
-//                    cout << "Keyboard cancel triggered" << endl;
-//                    mySM->postEvent(KB_C);
-//                }
-//            } else{
-                tv.tv_sec=0;
-                tv.tv_usec=0;//p from Debug menu tv_usec is included
-                cout << "\nWe timed out, relatively" << endl;
-                mySM->postEvent(TM);
-//            }
-        } else {
-//            tv.tv_sec = absoluteTimeout - now; //p Relative time
-            tv.tv_usec = absoluteTimeout - now; //p Relative time
+            //P Quickly checks the return value to see if there's a possibility of a keyboard cancellation or input in mediumD
             int max_fd = max(mediumD, consoleInId)+1;
+            tv.tv_usec = 100; //p Check very quickly!
             int rv = PE(select( max_fd, &set, NULL, NULL, &tv ));
 
-            if(rv == 0){ // User is typing?
-//                cout << "\nWe timed out rv = 0" << endl;
-                mySM->postEvent(TM);
-            }
-            else{
+            // If select function returned nothing
+            if(rv != 0)
+            {
+                // Keyboard cancel has priority
+                if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
+                    cout << "\n consoleInId" << endl;
+                    int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 1, 1);
+                    cout << "\n Done reading! console" << endl;
+
+                    if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
+                        mySM->postEvent(KB_C);
+                    }
+                }
                 if(FD_ISSET(mediumD, &set)) { // If the mediumD has something to read from
                     cout << "\n mediumD" << endl;
                     //read character from medium
-                    PE_NOT(myReadcond(mediumD, &byteToReceive[0], 1, 1, 0, 1), 1); // data should be available right //P Set timer to 1, since data should be available right away
+                    PE_NOT(myReadcond(mediumD, &byteToReceive[0], 1, 1, 0, 0), 1); // data should be available right //P Set timer to 1, since data should be available right away
                     cout << "\n Done reading! mediumD" << endl;
 
                     if (reportInfo)
                         COUT << logLeft << 1.0*(absoluteTimeout - now)/MILLION << ":" << (int)(unsigned char) byteToReceive[0] << ":" << byteToReceive[0] << logRight << flush;
                     mySM->postEvent(SER, byteToReceive[0]);
                 }
-                if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
-                    cout << "\n consoleInId" << endl;
-                    int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 1);
-                    cout << "\n Done reading! console" << endl;
+            }
+                tv.tv_sec=0;
+                tv.tv_usec=0;//p from Debug menu tv_usec is included
+                mySM->postEvent(TM);
+        } else {
+            tv.tv_usec = absoluteTimeout - now; //p Relative time
+            int max_fd = max(mediumD, consoleInId)+1;
+            int rv = PE(select( max_fd, &set, NULL, NULL, &tv ));
 
+            if(rv == 0){ // Timeout?
+                mySM->postEvent(TM);
+            }
+            else{
+                // Keyboard cancel has priority
+                if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
+                    int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 3, 1, 1);
                     if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
-//                        cout << "Keyboard cancel triggered" << endl;
                         mySM->postEvent(KB_C);
                     }
+                }
+                if(FD_ISSET(mediumD, &set)) { // If the mediumD has something to read froml;
+                    //read character from medium
+                    PE_NOT(myReadcond(mediumD, &byteToReceive[0], 1, 1, 0, 0), 1); // data should be available right //P Set timer to 1, since data should be available right away
+                    if (reportInfo)
+                        COUT << logLeft << 1.0*(absoluteTimeout - now)/MILLION << ":" << (int)(unsigned char) byteToReceive[0] << ":" << byteToReceive[0] << logRight << flush;
+                    mySM->postEvent(SER, byteToReceive[0]);
                 }
             }
 		}
