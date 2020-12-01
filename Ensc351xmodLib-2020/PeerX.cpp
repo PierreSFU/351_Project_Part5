@@ -119,20 +119,42 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 		FD_ZERO(&set); //we have to zero the set idk why /a
 		FD_SET(mediumD, &set); // add our medium descriptor to the set /a
 		FD_SET(consoleInId, &set);
-		int fdsReady = select(max(mediumD,consoleInId)+1, &set, NULL, NULL, &tv); //first argument is something to do with the size of the descriptors, second is the set where we determine
+		select(max(mediumD,consoleInId)+1, &set, NULL, NULL, &tv); //first argument is something to do with the size of the descriptors, second is the set where we determine
 		                                                                                                   //what's ready to be read, last is our timeval struct /a
 
 
         uint32_t now = elapsed_usecs();
         if ((now >= absoluteTimeout)) {
-            if (FD_ISSET( mediumD, &set )) {
+
+            if( FD_ISSET(consoleInId, &set )) {
+
+
+               char byteToReceive[3];
+               myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 0);
+
+               if ((byteToReceive[0] == '&') && (byteToReceive[1] == 'c') && (byteToReceive[2] == '\n')) {
+                   mySM->postEvent(KB_C);
+               }
+                }
+            else if (FD_ISSET( mediumD, &set )) {
                 char byteToReceive;
                 PE_NOT(myReadcond(mediumD, &byteToReceive, 1, 1, 0, 0), 1); //
                 mySM->postEvent(SER, byteToReceive);
             }
+
             mySM->postEvent(TM);
         }
 
+        else if( FD_ISSET(consoleInId, &set )) {
+
+
+           char byteToReceive[3];
+           myReadcond(consoleInId, &byteToReceive, 3, 2, 1, 1);
+
+           if ((byteToReceive[0] == '&') && (byteToReceive[1] == 'c') && (byteToReceive[2] == '\n')) {
+               mySM->postEvent(KB_C);
+           }
+            }
 
         else if( FD_ISSET( mediumD, &set )) {
                 //read character from medium
@@ -145,16 +167,7 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 			mySM->postEvent(SER, byteToReceive);
             }
 
-        else if( FD_ISSET(consoleInId, &set )) {
-                //read character from medium
 
-            char *byteToReceive;
-            PE_NOT(myReadcond(consoleInId, &byteToReceive, 4, 4, 0, 0), 1); // data should be available right away
-            //PE_NOT(myRead(mediumD, &byteToReceive, 1), 1);
-           if (byteToReceive == CANC_C) {
-               mySM->postEvent(KB_C);
-           }
-            }
 
 	}
 //		smLogFile.close();
