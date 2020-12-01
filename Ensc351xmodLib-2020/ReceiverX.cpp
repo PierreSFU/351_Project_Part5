@@ -226,26 +226,16 @@ void ReceiverX::can8()
 void ReceiverX::purge()
 {
 	// ********** you will need to fill in this function ***********
-    /* P
-           TM_CHAR = 1 second period
-    */
-
 //    const int appropriateSize = 150; //P TODO: Determine if reading 1 char at a time is appropriate
-//    char buffer[appropriateSize];
-
     char character=CAN;
     int bytesRead = 1;
     // This will loop only for 1 second since thread will be stuck reading
     // for dSECS...*TM_CHAR where TM_CHAR is 1 second
-    do {
-        bytesRead = PE(myReadcond(mediumD, &character, sizeof(character),
-                    sizeof(character), dSECS_PER_UNIT*TM_CHAR, dSECS_PER_UNIT*TM_CHAR));
-//        cout << "Bytes Read: " << bytesRead << endl;
-    } while (bytesRead);
-
-//    cout << "We exited the purge loop!" << endl;
-//    if (character != CAN)
-//        CON_OUT(consoleOutId, character << flush);
+    while (bytesRead){
+        bytesRead = PE(myReadcond(mediumD, &character, sizeof(character),sizeof(character), dSECS_PER_UNIT*TM_CHAR, dSECS_PER_UNIT*TM_CHAR));
+    }
+    //        cout << "Bytes Read: " << bytesRead << endl;
+    CON_OUT(consoleOutId, flush); //p added later
 }
 
 void ReceiverX::receiveFile()

@@ -102,100 +102,77 @@ transferCommon(std::shared_ptr<StateMgr> mySM, bool reportInfoParam)
 	mySM->start();
 
 	/* ******** You may need to add code here ******** */
+#define SEND_C      "&s"
+#define RECV_C      "&r"
 
-//P BEGIN
-//	/* Check the first NFDS descriptors each in READFDS (if not NULL) for read
-//	   readiness, in WRITEFDS (if not NULL) for write readiness, and in EXCEPTFDS
-//	   (if not NULL) for exceptional conditions.  If TIMEOUT is not NULL, time out
-//	   after waiting the interval specified therein.  Returns the number of ready
-//	   descriptors, or -1 for errors.
-//
-//	   This function is a cancellation point and therefore not marked with
-//	   __THROW.  */
-//	extern int select (int __nfds, fd_set *__restrict __readfds,
-//	           fd_set *__restrict __writefds,
-//	           fd_set *__restrict __exceptfds,
-//	           struct timeval *__restrict __timeout);
-//    int rv = PE(select( max(mediumD,inD)+1, &set, NULL, NULL, NULL ));
-//P END
-	//      fd_set set;
-	//      FD_ZERO(&set);
-	//      FD_SET(mediumD, &set);
-	//      FD_SET(inD, &set);
-	//
-	//      int rv = PE(select( max(mediumD,
-	//                        inD)+1, &set, NULL, NULL, NULL ));
-	/*P
-	        fd_set set;
-	        FD_ZERO(&set);
-	        FD_SET(mediumD, &set);
-	        FD_SET(consoleInId, &set); //P consoleInId is input from the console I think
-	//      int max_fd_t = max(d[TERM1], d[TERM2]);
-	//      int max_fd = max(max_fd_t, STDIN_FILENO)+1;
-	//      int rv = PE(select(max_fd, &set, NULL, NULL, NULL));
-	//      FD_ISSET(STDIN_FILENO, &set);
-
-	         *  SOMEHOW Determine what type of input is coming in, probably relying on the select function
-	         *
-	        fd_set set;
-	        FD_ZERO(&set); // Resets "set"'s bits to zero
-	        input this somewhere in this loop to check:
-	        int rv = PE(select( max(mediumD,inD)+1, &set, NULL, NULL, NULL ));
-	        "Hey, select function" was there input from the keyboard, medium descriptor or was there a timeout?"
-	        */
-
-	//        int max_fd_t = max(d[TERM1], d[TERM2]);
-	//        int max_fd = max(max_fd_t, STDIN_FILENO)+1;
-
-	//        FD_SET(consoleInId, &set); //P consoleInId is input from the console I think
+#define TERM_QUIT_C     "&q!"
 
 	struct timeval tv;
 
 	while(mySM->isRunning()) {
 		// ************* this loop is going to need more work ************
-		tv.tv_sec=0;
-		tv.tv_usec=0;//p from Debug menu tv_usec is included
-
-//        //p Check current bits
-//        cout << "Current input bit is! " << set.fds_bits[0] << endl;
-//        if(set.fds_bits[0] == 8){
-//               cout << "transferCommon: &s" << endl;
-//        }
-//        else if(set.fds_bits[0] == 32){
-//               cout << "transferCommon: &r" << endl;
-//        }
-
         fd_set set;
-        FD_ZERO(&set);
+        FD_ZERO(&set); //p Initialize set
         FD_SET(mediumD, &set); //p Add mediumD to set
-        FD_SET(consoleInId, &set); //p Add console input as a set
+        FD_SET(consoleInId, &set); //p Add console input to set
+		uint32_t now = elapsed_usecs(); //p Set now to current time
+//		uint32_t now = elapsed_usecs()*dSECS_PER_UNIT; //p may be needed in dSECS
 
+        tv.tv_sec=0;
+        tv.tv_usec=0;//p from Debug menu tv_usec is included
+        char byteToReceive[3]; // [0] = ~, [1] = letter, [2] = \n
 
-
-		uint32_t now = elapsed_usecs();
         if (now >= absoluteTimeout) {
-            //...
-            //P We are leaving due to timeout, what do we reset??!
-            mySM->postEvent(TM);
+            //P Technically we can check for KeyboardCancellation before leaving, but this code would execute so quickly that it woudln't matter right...?
+            //P Checking RV in here may be overkill
+            tv.tv_usec = 1*dSECS_PER_UNIT; //p Only check if it's already there so leave this extremely small
+            int max_fd = max(mediumD, consoleInId)+1;
+            int rv = PE(select( max_fd, &set, NULL, NULL, &tv ));
+            if(rv != 0)
+            if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
+                cout << "\n consoleInId" << endl;
+                int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 0);
+
+                if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
+                    cout << "Keyboard cancel triggered" << endl;
+                    mySM->postEvent(KB_C);
+                }
+            } else{
+                tv.tv_sec=0;
+                tv.tv_usec=0;//p from Debug menu tv_usec is included
+                cout << "\nWe timed out, relatively" << endl;
+                mySM->postEvent(TM);
+            }
         } else {
-            // ...
+//            tv.tv_sec = absoluteTimeout - now; //p Relative time
             tv.tv_usec = absoluteTimeout - now; //p Relative time
             int max_fd = max(mediumD, consoleInId)+1;
             int rv = PE(select( max_fd, &set, NULL, NULL, &tv ));
-//            cout << "Selects input RV is " << rv << endl;
-            //P Determine where the input is coming from?
-//            /****/ {
-            // If the mediumD has something to read from
-            if(FD_ISSET(mediumD, &set)) {
-                //read character from medium
-				char byteToReceive;
-				PE_NOT(myReadcond(mediumD, &byteToReceive, 1, 1, 0, 0), 1); // data should be available right //P This is waiting forever... is it supposed to wait forever?!?
-				//PE_NOT(myRead(mediumD, &byteToReceive, 1), 1);
 
-				if (reportInfo)
-					COUT << logLeft << 1.0*(absoluteTimeout - now)/MILLION << ":" << (int)(unsigned char) byteToReceive << ":" << byteToReceive << logRight << flush;
-				mySM->postEvent(SER, byteToReceive);
-			}
+            if(rv == 0){ // User is typing?
+//                cout << "\nWe timed out rv = 0" << endl;
+                mySM->postEvent(TM);
+            }
+            else{
+                if(FD_ISSET(mediumD, &set)) { // If the mediumD has something to read from
+                    cout << "\n mediumD" << endl;
+                    //read character from medium
+                    PE_NOT(myReadcond(mediumD, &byteToReceive[0], 1, 1, 0, 0), 1); // data should be available right //P This is waiting forever... is it supposed to wait forever?!?
+
+                    if (reportInfo)
+                        COUT << logLeft << 1.0*(absoluteTimeout - now)/MILLION << ":" << (int)(unsigned char) byteToReceive[0] << ":" << byteToReceive[0] << logRight << flush;
+                    mySM->postEvent(SER, byteToReceive[0]);
+                }
+                if(FD_ISSET(consoleInId, &set)) { // If the console has something to read from
+                    cout << "\n consoleInId" << endl;
+                    int returnValue = myReadcond(consoleInId, &byteToReceive, 3, 2, 0, 0);
+
+                    if(returnValue == 3 && byteToReceive[0] == '&' && byteToReceive[1] == 'c' && byteToReceive[2] == '\n'){
+                        cout << "Keyboard cancel triggered" << endl;
+                        mySM->postEvent(KB_C);
+                    }
+                }
+            }
 		}
 	}
 //		smLogFile.close();
