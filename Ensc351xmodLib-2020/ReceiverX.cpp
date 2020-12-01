@@ -242,13 +242,12 @@ void ReceiverX::purge()
 
     do {
         bytesRead = PE(myReadcond(mediumD, &character, sizeof(character),
-                    sizeof(character), dSECS_PER_UNIT*TM_CHAR, dSECS_PER_UNIT*TM_CHAR));
+                    sizeof(character), 10, 10));
         //bytesRead = PE(myReadcond(mediumD, &character, sizeof(character), sizeof(character), canTimeout, canTimeout));
 
-
     } while (bytesRead);
-    if (character != CAN)
-        CON_OUT(consoleOutId, character << flush);
+    //sendByte(NAK);
+
 }
 
 void ReceiverX::receiveFile()
